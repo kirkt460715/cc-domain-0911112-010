@@ -1,0 +1,61 @@
+{
+  "routes": [
+    {
+      "path": "/manifest",
+      "responses": [
+        {
+          "json": {
+            "release_id": "release-01",
+            "members": [
+              {
+                "dataset": "courses",
+                "member_version": "v1",
+                "schema_revision": 1,
+                "url": "/data/courses",
+                "sha256": "5b08b79ef3bd3659912760dafc218bac307edb973462b4e86880b4d3ef46d8db",
+                "bytes": 43,
+                "dependencies": []
+              },
+              {
+                "dataset": "enrollments",
+                "member_version": "v1",
+                "schema_revision": 1,
+                "url": "/data/enrollments",
+                "sha256": "4dbaa187d4f9699b1c8ef5f5ee59802c1df17ac668dedcd08cb400a33ab713dc",
+                "bytes": 38,
+                "dependencies": [
+                  {
+                    "dataset": "courses",
+                    "member_version": "v1"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "path": "/data/courses",
+      "responses": [
+        {
+          "body": "[{\"code\":\"C1\",\"name\":\"合成测量课程\"}]",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      ]
+    },
+    {
+      "path": "/data/enrollments",
+      "responses": [
+        {
+          "body": "[{\"id\":\"E1\",\"course\":\"C1\",\"hours\":12}]",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      ]
+    }
+  ]
+}
