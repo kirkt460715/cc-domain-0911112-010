@@ -64,6 +64,16 @@ export function apiServer(harbor, {token, maximumBytes = 32 * 1024 * 1024}) {
           case '/lineage':
             result = await harbor.lineage(url.searchParams.get('reference'), actor);
             break;
+          case '/bundles':
+            result = await harbor.bundleList();
+            break;
+          case '/bundle':
+            result = await harbor.bundleStatus(url.searchParams.get('id'));
+            break;
+          case '/bundle/trace':
+            result = await harbor.bundleTrace(url.searchParams.get('reference')
+              ? {reference: url.searchParams.get('reference')} : {id: url.searchParams.get('id')});
+            break;
           default:
             demand(false, 'endpoint', 'Unknown endpoint', {}, 404);
         }
@@ -132,6 +142,27 @@ export function apiServer(harbor, {token, maximumBytes = 32 * 1024 * 1024}) {
             break;
           case '/risk':
             result = await harbor.risk(input, actor);
+            break;
+          case '/bundles/preview':
+            result = await harbor.previewBundlePlan(input, actor);
+            break;
+          case '/bundles/plan':
+            result = await harbor.planBundle(input, actor);
+            break;
+          case '/bundles/ingest': {
+            const expected = request.headers['if-match'];
+            result = await harbor.ingestBundle(input, actor,
+              expected === undefined ? undefined : count(Number(expected), 'if-match'));
+            break;
+          }
+          case '/bundles/activate': {
+            const expected = request.headers['if-match'];
+            result = await harbor.activateBundle(input, actor,
+              expected === undefined ? undefined : count(Number(expected), 'if-match'));
+            break;
+          }
+          case '/bundles/abandon':
+            result = await harbor.abandonBundle(input, actor);
             break;
           default:
             demand(false, 'endpoint', 'Unknown endpoint', {}, 404);

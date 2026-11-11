@@ -14,6 +14,7 @@ export function blankIndex() {
     grants: {},
     requests: {},
     releases: {},
+    bundles: {},
     audits: [],
   };
 }

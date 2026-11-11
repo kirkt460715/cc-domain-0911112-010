@@ -1,5 +1,6 @@
 import {checksum, encode, demand, decode} from './primitives.js';
 import {remainingBudget} from './policy.js';
+import {bundleObjects, OPEN_BUNDLE_STATES} from './bundles.js';
 
 export function referencedObjects(index) {
   const references = new Map();
@@ -17,6 +18,9 @@ export function referencedObjects(index) {
   for (const release of Object.values(index.releases)) {
     add(release.artifact, `${release.id}:artifact`);
     add(release.manifest, `${release.id}:manifest`);
+  }
+  for (const [hash, use] of bundleObjects(index)) {
+    add(hash, use);
   }
   return references;
 }
@@ -84,6 +88,40 @@ export function checkIndex(index) {
       failures.push({code: 'approval_duplicate', request: request.id});
     }
   }
+  for (const bundle of Object.values(index.bundles ?? {})) {
+    if (!OPEN_BUNDLE_STATES.includes(bundle.state) && !['activated', 'abandoned'].includes(bundle.state)) {
+      failures.push({code: 'bundle_state', bundle: bundle.id});
+    }
+    const memberDatasets = new Set();
+    for (const member of bundle.members) {
+      memberDatasets.add(member.dataset);
+      if (!index.datasets[member.dataset]) {
+        failures.push({code: 'bundle_dataset', bundle: bundle.id, dataset: member.dataset});
+      }
+      if (member.reference) {
+        const version = index.versions[member.reference];
+        if (!version) {
+          failures.push({code: 'bundle_member_version', bundle: bundle.id, dataset: member.dataset});
+        } else if (version.provenance?.bundle !== bundle.id) {
+          failures.push({code: 'bundle_provenance', bundle: bundle.id, reference: member.reference});
+        }
+      }
+      for (const dependency of member.dependencies) {
+        if (!memberDatasets.has(dependency) && !bundle.members.some(item => item.dataset === dependency)) {
+          failures.push({code: 'bundle_dependency', bundle: bundle.id, dataset: member.dataset, dependency});
+        }
+      }
+    }
+    if (bundle.state === 'activated') {
+      for (const member of bundle.members) {
+        const version = index.versions[member.reference];
+        const dataset = index.datasets[member.dataset];
+        if (!version || version.status !== 'active' || dataset?.current !== member.reference) {
+          failures.push({code: 'bundle_activation', bundle: bundle.id, dataset: member.dataset});
+        }
+      }
+    }
+  }
   return {valid: failures.length === 0, generation: index.generation, failures};
 }
 export async function verifyVault(vault, index) {
@@ -117,6 +155,22 @@ export async function verifyVault(vault, index) {
       failures.push({code: 'manifest_unreadable', release: release.id, reason: error.kind ?? error.code});
     }
   }
+  for (const bundle of Object.values(index.bundles ?? {})) {
+    for (const member of bundle.members) {
+      if (!member.contentObject) {
+        continue;
+      }
+      try {
+        const content = await vault.getObject(member.contentObject);
+        if (checksum(content) !== member.sha256 || Buffer.byteLength(content) !== member.bytes) {
+          failures.push({code: 'bundle_member_digest', bundle: bundle.id, dataset: member.dataset});
+        }
+      } catch (error) {
+        failures.push({code: 'bundle_member_unreadable', bundle: bundle.id, dataset: member.dataset,
+          reason: error.kind ?? error.code});
+      }
+    }
+  }
   return {valid: failures.length === 0, generation: index.generation, objects: references.size, failures};
 }
 export function operationalStatus(index, at) {
@@ -134,5 +188,9 @@ export function operationalStatus(index, at) {
   const quarantined = Object.values(index.versions).filter(version => version.status === 'quarantined')
     .map(version => ({reference: version.reference, failures: version.gate.failures}));
   return {generation: index.generation, versions, requests, expirable, budgets, quarantined,
+    bundles: (index.bundles ? Object.values(index.bundles) : []).map(bundle => ({
+      id: bundle.id, releaseId: bundle.releaseId, state: bundle.state,
+      members: bundle.members.map(member => ({dataset: member.dataset, status: member.status, reference: member.reference})),
+    })),
     releases: Object.values(index.releases).map(release => ({id: release.id, status: release.status, expired: at >= release.expiresAt}))};
 }

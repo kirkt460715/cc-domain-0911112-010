@@ -6,3 +6,7 @@ GET /manifest 返回关联成员清单。/data/courses 与 /data/enrollments 提
 
     node synthetic_exchange/server.js
     node --test synthetic_exchange/smoke.test.js
+
+发布组联调时，把 `/manifest` 的文档作为 `bundle-plan` 的 `manifest` 输入，并将服务地址作为
+`baseUrl` 传入；成员 `url` 是相对路径，会基于 `baseUrl` 解析。采集端只接受清单声明的
+sha256/bytes，任何字节漂移都会隔离成员并保留诊断。完整流程见 `tests/bundles.test.js`。

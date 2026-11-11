@@ -12,6 +12,7 @@ import * as inspection from './inspection.js';
 import * as integrity from './integrity.js';
 import * as maintenance from './maintenance.js';
 import * as changes from './changes.js';
+import * as bundles from './bundles.js';
 
 export class Harbor {
   constructor(root, {clock = () => new Date(), lockTimeout = 5000} = {}) {
@@ -171,6 +172,32 @@ export class Harbor {
   }
   async orphans() {
     return this.read(index => maintenance.orphanReport(this.vault, index));
+  }
+  async previewBundlePlan(input, actor) {
+    return this.read(index => bundles.previewBundle(index, input, actor));
+  }
+  async planBundle(input, actor) {
+    return this.write(actor, 'bundle.plan', (index, at) => bundles.planBundle(index, input, actor, at));
+  }
+  async ingestBundle(input, actor, expectedGeneration) {
+    return this.write(actor, 'bundle.ingest',
+      (index, at) => bundles.ingestBundle(this.vault, index, input, actor, at), expectedGeneration);
+  }
+  async activateBundle(input, actor, expectedGeneration) {
+    return this.write(actor, 'bundle.activate',
+      (index, at) => bundles.activateBundle(index, input, actor, at), expectedGeneration);
+  }
+  async abandonBundle(input, actor) {
+    return this.write(actor, 'bundle.abandon', (index, at) => bundles.abandonBundle(index, input, actor, at));
+  }
+  async bundleStatus(id) {
+    return this.read((index, at) => bundles.bundleStatus(index, id, at));
+  }
+  async bundleList() {
+    return this.read(index => ({generation: index.generation, bundles: bundles.bundleSummary(index)}));
+  }
+  async bundleTrace(input) {
+    return this.read(index => bundles.bundleTrace(index, input));
   }
   async collect(input) {
     return maintenance.collectOrphans(this.vault, input);

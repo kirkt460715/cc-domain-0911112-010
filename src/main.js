@@ -15,7 +15,7 @@ export function parseArguments(argv) {
     demand(option.startsWith('--') && value !== undefined, 'arguments', 'Options require --name value pairs');
     const name = option.slice(2);
     demand(!Object.hasOwn(options, name), 'arguments', 'Repeated command option');
-    demand(['root', 'input', 'actor', 'id', 'destination', 'port', 'generation'].includes(name), 'arguments', 'Unknown command option');
+    demand(['root', 'input', 'actor', 'id', 'destination', 'port', 'generation', 'reference'].includes(name), 'arguments', 'Unknown command option');
     options[name] = value;
   }
   return {command, options};
@@ -32,6 +32,8 @@ export async function runCommand(argv) {
         'rejected', 'risk', 'lineage', 'catalog', 'status', 'verify', 'budget', 'request-status',
         'audit', 'changes', 'preview-changes', 'orphans', 'collect', 'backup', 'backup-verify',
         'restore', 'recover-lock', 'serve',
+        'bundle-preview', 'bundle-plan', 'bundle-ingest', 'bundle-activate', 'bundle-abandon',
+        'bundle-status', 'bundles', 'bundle-trace',
       ],
       runtime: 'Node.js 22, local files only; no installation during startup.',
       privacy: 'Use synthetic data for demonstration; runtime tokenization key stays in the vault.',
@@ -131,6 +133,22 @@ export async function runCommand(argv) {
       return harbor.orphans();
     case 'collect':
       return harbor.collect(input);
+    case 'bundle-preview':
+      return harbor.previewBundlePlan(input, actor);
+    case 'bundle-plan':
+      return harbor.planBundle(input, actor);
+    case 'bundle-ingest':
+      return harbor.ingestBundle(input, actor, options.generation === undefined ? undefined : count(Number(options.generation), 'generation'));
+    case 'bundle-activate':
+      return harbor.activateBundle(input, actor, options.generation === undefined ? undefined : count(Number(options.generation), 'generation'));
+    case 'bundle-abandon':
+      return harbor.abandonBundle(input, actor);
+    case 'bundle-status':
+      return harbor.bundleStatus(options.id);
+    case 'bundles':
+      return harbor.bundleList();
+    case 'bundle-trace':
+      return harbor.bundleTrace(options.reference ? {reference: options.reference} : input);
     case 'backup':
       demand(options.destination, 'arguments', '--destination is required');
       return harbor.backup(options.destination);
